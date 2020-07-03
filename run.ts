@@ -107,7 +107,7 @@ async function checkNode(address: string, port: number): Promise<boolean> {
 			console.log(`Node ${address}:${port} is good.`);
 			return true;
 		} catch (e) {
-			console.log(`Node ${address}:${port} Failed ${i}: ${e.toString()}`);
+			console.log(`Node ${address}:${port} Failed in checking ${currentTestDomain} ${i}: ${e.toString()}`);
 		}
 	}
 	console.log(`Node ${address}:${port} is bad.`);
