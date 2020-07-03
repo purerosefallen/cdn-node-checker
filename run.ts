@@ -16,6 +16,7 @@ interface Config {
 	cdnRecords: CDNRecord[];
 	testDomains: string[];
 	timeout: number;
+	retryCount: number;
 	cronString: string;
 }
 
@@ -91,23 +92,26 @@ async function getRecords(): Promise<DomainRecordInfo[]> {
 
 async function checkNode(address: string, port: number): Promise<boolean> {
 	let currentTestDomain: string;
-	try {
-		for (let testDomain of config.testDomains) {
-			currentTestDomain = testDomain;
-			await axios.get(`https://${address}:${port}`, {
-				headers: {
-					Host: testDomain
-				},
-				timeout: config.timeout,
-				validateStatus: status => status < 500
-			});
+	for (let i = 1; i <= config.retryCount; ++i) {
+		try {
+			for (let testDomain of config.testDomains) {
+				currentTestDomain = testDomain;
+				await axios.get(`https://${address}:${port}`, {
+					headers: {
+						Host: testDomain
+					},
+					timeout: config.timeout,
+					validateStatus: status => status < 500
+				});
+			}
+			console.log(`Node ${address}:${port} is good.`);
+			return true;
+		} catch (e) {
+			console.log(`Node ${address}:${port} Failed ${i}: ${e.toString()}`);
 		}
-		console.log(`Node ${address}:${port} is good.`);
-		return true;
-	} catch (e) {
-		console.log(`Node ${address}:${port} is bad: ${currentTestDomain} => ${e.toString()}`);
-		return false;
 	}
+	console.log(`Node ${address}:${port} is bad.`);
+	return false;
 }
 
 async function checkRecord(recordInfo: DomainRecordInfo) {

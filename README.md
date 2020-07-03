@@ -26,6 +26,7 @@ testDomains:
   - ygobbs.com # Testing sources.
   - nanahira.momobako.com
 timeout: 10000
+retryCount: 3
 cronString: "0 * * * * *"
 
 ```
