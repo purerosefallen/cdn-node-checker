@@ -1,0 +1,14 @@
+aliyun:
+  accessKeyId: ""
+  accessKeySecret: ""
+  endpoint: "https://alidns.aliyuncs.com"
+  apiVersion: "2015-01-09"
+domain: yuzurisa.com
+cdnRecords:
+  - match: '^cdn-[-a-zA-Z]+$'
+    port: 443
+testDomains:
+  - ygobbs.com
+  - nanahira.momobako.com
+timeout: 10000
+cronString: "0 * * * * *"

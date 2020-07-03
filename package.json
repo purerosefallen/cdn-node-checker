@@ -1,0 +1,28 @@
+{
+  "name": "cdn-node-checker",
+  "version": "1.0.0",
+  "description": "Check CDN nodes and update AliDNS records.",
+  "main": "build/run.js",
+  "scripts": {
+    "build": "./node_modules/.bin/tsc",
+    "start": "node build/run.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@git.mycard.moe:nanahira/cdn-node-checker.git"
+  },
+  "author": "Nanahira",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "@alicloud/pop-core": "^1.7.9",
+    "@types/cron": "^1.7.2",
+    "@types/node": "^14.0.14",
+    "@types/underscore": "^1.10.3",
+    "@types/yaml": "^1.9.7",
+    "axios": "^0.19.2",
+    "cron": "^1.8.2",
+    "typescript": "^3.9.6",
+    "underscore": "^1.10.2",
+    "yaml": "^1.10.0"
+  }
+}
