@@ -102,10 +102,10 @@ async function checkNode(address: string, port: number): Promise<boolean> {
 				validateStatus: status => status < 500
 			});
 		}
-		console.log(`Node ${address} is good.`);
+		console.log(`Node ${address}:${port} is good.`);
 		return true;
 	} catch (e) {
-		console.log(`Node ${address} is bad: ${currentTestDomain} => ${e.toString()}`);
+		console.log(`Node ${address}:${port} is bad: ${currentTestDomain} => ${e.toString()}`);
 		return false;
 	}
 }
