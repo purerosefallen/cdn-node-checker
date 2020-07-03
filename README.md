@@ -1,6 +1,6 @@
 # cdn-node-checker
 
-Check CDN nodes and update AliDNS records.
+Check CDN nodes and enable/disable AliDNS records when services are available or unavailable.
 
 ## How to use
 
