@@ -1,14 +1,14 @@
 aliyun:
-  accessKeyId: ""
+  accessKeyId: "" # Your aliyun access key here.
   accessKeySecret: ""
   endpoint: "https://alidns.aliyuncs.com"
   apiVersion: "2015-01-09"
 domain: yuzurisa.com
-cdnRecords:
-  - match: '^cdn-[-a-zA-Z]+$'
-    port: 443
+cdnRecords: # You may add multiple.
+  - match: '^cdn-[-a-zA-Z]+$' # The matching domain records for CDN.
+    port: 443 # Change this if you are using non-standard ports.
 testDomains:
-  - ygobbs.com
+  - ygobbs.com # Testing sources.
   - nanahira.momobako.com
 timeout: 10000
 cronString: "0 * * * * *"
