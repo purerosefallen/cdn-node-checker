@@ -74,7 +74,7 @@ class Checker {
 		console.log(`${this.id} => ${msg}`);
 	}
 	async getRecords(): Promise<DomainRecordInfo[]> {
-		console.log(`Fetching domain records of ${config.domain}.`)
+		this.message(`Fetching domain records of ${config.domain}.`)
 		const res: DomainRecordInfo[] = [];
 		for (let i = 1; ; ++i) {
 			const ret: DomainRecordReturnResult = await this.client.request("DescribeDomainRecords", {
@@ -82,7 +82,7 @@ class Checker {
 				PageNumber: i,
 				PageSize: 500,
 			}, requestOption);
-			console.log(ret.TotalCount);
+			//this.message(`${ret.TotalCount} records found.`);
 			if (!ret.DomainRecords.Record.length) {
 				break;
 			}
@@ -96,7 +96,7 @@ class Checker {
 				});
 			})) {
 				const port = _.find(config.cdnRecords, r => record.RR.match(r.match)).port;
-				console.log(`Found record ${record.RR}.${config.domain} => ${record.Value}:${port}.`);
+				this.message(`Found record ${record.RR}.${config.domain} => ${record.Value}:${port}.`);
 				res.push({record, port});
 			}
 		}
@@ -122,7 +122,7 @@ class Checker {
 				this.message(`Node ${address}:${port} Failed in checking ${currentTestDomain} ${i}: ${e.toString()}`);
 			}
 		}
-		console.log(`Node ${address}:${port} is bad.`);
+		this.message(`Node ${address}:${port} is bad.`);
 		return false;
 	}
 	async checkRecord(recordInfo: DomainRecordInfo) {
