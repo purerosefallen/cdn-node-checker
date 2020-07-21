@@ -53,92 +53,108 @@ interface DomainRecordInfo {
 }
 
 let config: Config;
-let client: Aliyun;
-let cdnRecordsRegex: RegExp[];
 
 const requestOption = {
 	method: "POST"
 }
 
-async function getRecords(): Promise<DomainRecordInfo[]> {
-	console.log(`Fetching domain records of ${config.domain}.`)
-	const res: DomainRecordInfo[] = [];
-	for (let i = 1; ; ++i) {
-		const ret: DomainRecordReturnResult = await client.request("DescribeDomainRecords", {
-			DomainName: config.domain,
-			PageNumber: i,
-			PageSize: 500,
-		}, requestOption);
-		console.log(ret.TotalCount);
-		if (!ret.DomainRecords.Record.length) {
-			break;
-		}
-		for (let record of ret.DomainRecords.Record.filter(m => {
-			return m.RR && m.Type === "CNAME" && _.any(cdnRecordsRegex, r => !!m.RR.match(r)) && _.every(cdnRecordsRegex, r => {
-				if (!m.Value.endsWith(config.domain)) {
-					return true;
-				}
-				const valuePrefix = m.Value.slice(0, m.Value.length - 1 - config.domain.length);
-				return !valuePrefix.match(r);
-			});
-		})) {
-			const port = _.find(config.cdnRecords, r => record.RR.match(r.match)).port;
-			console.log(`Found record ${record.RR}.${config.domain} => ${record.Value}:${port}.`);
-			res.push({record, port});
-		}
+class Checker {
+	config: Config;
+	client: Aliyun;
+	cdnRecordsRegex: RegExp[];
+	static order: number = 0;
+	id: number;
+	constructor(config: Config) {
+		this.config = config;
+		this.client = new Aliyun(config.aliyun);
+		this.cdnRecordsRegex = config.cdnRecords.map(m => new RegExp(m.match));
+		this.id = ++Checker.order;
 	}
-	return res;
-}
-
-async function checkNode(address: string, port: number): Promise<boolean> {
-	let currentTestDomain: string;
-	for (let i = 1; i <= config.retryCount; ++i) {
-		try {
-			for (let testDomain of config.testDomains) {
-				currentTestDomain = testDomain;
-				await axios.get(`https://${address}:${port}`, {
-					headers: {
-						Host: testDomain
-					},
-					timeout: config.timeout,
-					validateStatus: status => status < 500
-				});
+	private message(msg: string) {
+		console.log(`${this.id} => ${msg}`);
+	}
+	async getRecords(): Promise<DomainRecordInfo[]> {
+		console.log(`Fetching domain records of ${config.domain}.`)
+		const res: DomainRecordInfo[] = [];
+		for (let i = 1; ; ++i) {
+			const ret: DomainRecordReturnResult = await this.client.request("DescribeDomainRecords", {
+				DomainName: config.domain,
+				PageNumber: i,
+				PageSize: 500,
+			}, requestOption);
+			console.log(ret.TotalCount);
+			if (!ret.DomainRecords.Record.length) {
+				break;
 			}
-			console.log(`Node ${address}:${port} is good.`);
-			return true;
-		} catch (e) {
-			console.log(`Node ${address}:${port} Failed in checking ${currentTestDomain} ${i}: ${e.toString()}`);
+			for (let record of ret.DomainRecords.Record.filter(m => {
+				return m.RR && m.Type === "CNAME" && _.any(this.cdnRecordsRegex, r => !!m.RR.match(r)) && _.every(this.cdnRecordsRegex, r => {
+					if (!m.Value.endsWith(config.domain)) {
+						return true;
+					}
+					const valuePrefix = m.Value.slice(0, m.Value.length - 1 - config.domain.length);
+					return !valuePrefix.match(r);
+				});
+			})) {
+				const port = _.find(config.cdnRecords, r => record.RR.match(r.match)).port;
+				console.log(`Found record ${record.RR}.${config.domain} => ${record.Value}:${port}.`);
+				res.push({record, port});
+			}
+		}
+		return res;
+	}
+	async checkNode(address: string, port: number): Promise<boolean> {
+		let currentTestDomain: string;
+		for (let i = 1; i <= this.config.retryCount; ++i) {
+			try {
+				for (let testDomain of this.config.testDomains) {
+					currentTestDomain = testDomain;
+					await axios.get(`https://${address}:${port}`, {
+						headers: {
+							Host: testDomain
+						},
+						timeout: this.config.timeout,
+						validateStatus: status => status < 500
+					});
+				}
+				this.message(`Node ${address}:${port} is good.`);
+				return true;
+			} catch (e) {
+				this.message(`Node ${address}:${port} Failed in checking ${currentTestDomain} ${i}: ${e.toString()}`);
+			}
+		}
+		console.log(`Node ${address}:${port} is bad.`);
+		return false;
+	}
+	async checkRecord(recordInfo: DomainRecordInfo) {
+		const record = recordInfo.record;
+		this.message(`${this.id} => Checking record ${record.RR}.${this.config.domain} ${record.Value}:${recordInfo.port} with old status of ${record.Status}.`)
+		const status = record.Status;
+		const targetStatus = (await this.checkNode(record.Value, recordInfo.port)) ? "ENABLE" : "DISABLE";
+		if (status != targetStatus) {
+			this.message(`Changing record status of ${record.RR}.${this.config.domain} ${record.Value}:${recordInfo.port} from ${status} to ${targetStatus}.`);
+			await this.client.request("SetDomainRecordStatus", {
+				RecordId: record.RecordId,
+				Status: targetStatus
+			}, requestOption);
 		}
 	}
-	console.log(`Node ${address}:${port} is bad.`);
-	return false;
-}
-
-async function checkRecord(recordInfo: DomainRecordInfo) {
-	const record = recordInfo.record;
-	console.log(`Checking record ${record.RR}.${config.domain} ${record.Value}:${recordInfo.port} with old status of ${record.Status}.`)
-	const status = record.Status;
-	const targetStatus = (await checkNode(record.Value, recordInfo.port)) ? "ENABLE" : "DISABLE";
-	if (status != targetStatus) {
-		console.log(`Changing record status of ${record.RR}.${config.domain} ${record.Value}:${recordInfo.port} from ${status} to ${targetStatus}.`);
-		await client.request("SetDomainRecordStatus", {
-			RecordId: record.RecordId,
-			Status: targetStatus
-		}, requestOption);
+	async start() {
+		this.message(`Started.`);
+		const records = await this.getRecords();
+		await Promise.all(records.map(r => {
+			return this.checkRecord(r);
+		}));
+		this.message(`Finished.`);
 	}
 }
 
 async function run() {
-	console.log(`Started.`);
-	const records = await getRecords();
-	await Promise.all(records.map(checkRecord));
-	console.log(`Finished.`);
+	const checker = new Checker(config);
+	await checker.start();
 }
 
 async function main() {
 	config = YAML.parse(await fs.promises.readFile("./config.yaml", "utf8"));
-	client = new Aliyun(config.aliyun);
-	cdnRecordsRegex = config.cdnRecords.map(m => new RegExp(m.match));
 	//await run();
 	(new CronJob(config.cronString, run, null, true, "Asia/Shanghai", null, true)).start();
 }
