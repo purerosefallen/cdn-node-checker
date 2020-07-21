@@ -127,7 +127,7 @@ class Checker {
 	}
 	async checkRecord(recordInfo: DomainRecordInfo) {
 		const record = recordInfo.record;
-		this.message(`${this.id} => Checking record ${record.RR}.${this.config.domain} ${record.Value}:${recordInfo.port} with old status of ${record.Status}.`)
+		this.message(`Checking record ${record.RR}.${this.config.domain} ${record.Value}:${recordInfo.port} with old status of ${record.Status}.`)
 		const status = record.Status;
 		const targetStatus = (await this.checkNode(record.Value, recordInfo.port)) ? "ENABLE" : "DISABLE";
 		if (status != targetStatus) {
